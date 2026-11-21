@@ -25,7 +25,7 @@ The admin account is created from these two variables before the web server star
 
 - Listens on Railway's `PORT` and answers `/healthz` (checks the volume is writable and the configuration exists; no login needed).
 - Seeds the configuration and admin login on first start, as Shaarli's install page would.
-- Uses Railway's `X-Real-IP` and `X-Forwarded-Proto`, so Shaarli sees the real visitor address (session protection and the brute-force ban work) and marks cookies `Secure`.
+- Uses Railway's `X-Real-IP` and `X-Forwarded-Proto`, so Shaarli sees the real visitor address (session protection and the brute-force ban work), and marks the session and "stay signed in" cookies `Secure` and `HttpOnly`.
 - Keeps thumbnails and PHP sessions on the volume, so the picture wall and your login survive a redeploy.
 - Supervises nginx and PHP-FPM: if either stops unexpectedly the container exits with an error and Railway restarts it.
 - Sizes PHP-FPM (6 workers, 128 MB each at most) for a small service.

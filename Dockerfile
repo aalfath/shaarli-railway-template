@@ -10,6 +10,15 @@ COPY rootfs/healthz.php         /usr/local/share/shaarli/healthz.php
 COPY rootfs/railway-proxy.php   /usr/local/share/shaarli/railway-proxy.php
 COPY rootfs/start.sh            /usr/local/bin/start.sh
 
+# The year-long "stay signed in" cookie is set without Secure/HttpOnly upstream; add them
+# (Secure only over HTTPS). The grep fails the build if upstream changes this line.
+RUN set -eux; \
+    f=/var/www/shaarli/application/security/CookieManager.php; \
+    test "$(grep -c 'setcookie($key, $value, $expires, $path);' "$f")" = 1; \
+    sed -i "s|setcookie(\$key, \$value, \$expires, \$path);|setcookie(\$key, \$value, ['expires' => \$expires, 'path' => \$path, 'secure' => !empty(\$_SERVER['HTTPS']), 'httponly' => true, 'samesite' => 'Lax']);|" "$f"; \
+    grep -q "'httponly' => true" "$f"; \
+    php84 -l "$f"
+
 # Thumbnails go to data/thumbnails (on the volume) instead of cache/, so the picture
 # wall survives a redeploy: Shaarli stores each thumbnail's path in the datastore.
 RUN set -eux; \

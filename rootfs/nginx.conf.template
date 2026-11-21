@@ -1,0 +1,65 @@
+# Shaarli's upstream nginx.conf, listening on Railway's PORT, plus a /healthz endpoint.
+user nginx nginx;
+daemon off;
+worker_processes 1;
+pid /var/run/nginx.pid;
+error_log /dev/stderr warn;
+
+events {
+    worker_connections 512;
+}
+
+http {
+    include            mime.types;
+    default_type       application/octet-stream;
+    keepalive_timeout  20;
+    server_tokens      off;
+    client_max_body_size 32m;
+    index index.html index.php;
+
+    # Railway's edge sets X-Real-IP to the visitor's address.
+    log_format railway '$http_x_real_ip [$time_local] "$request" $status $body_bytes_sent "$http_user_agent"';
+
+    server {
+        listen      ${PORT} default_server;
+        listen      [::]:${PORT} default_server;
+        root        /var/www/shaarli;
+
+        access_log  /dev/stdout railway;
+        error_log   /dev/stderr warn;
+
+        location = /healthz {
+            access_log off;
+            fastcgi_pass   unix:/var/run/php-fpm.sock;
+            include        fastcgi_params;
+            fastcgi_param  SCRIPT_FILENAME /usr/local/share/shaarli/healthz.php;
+        }
+
+        location ~* \.(?:ico|css|js|gif|jpe?g|png|ttf|oet|woff2?)$ {
+            expires    max;
+            add_header Pragma public;
+            add_header Cache-Control "public, must-revalidate, proxy-revalidate";
+        }
+
+        location = /favicon.ico {
+            alias /var/www/shaarli/images/favicon.ico;
+        }
+
+        location /doc/html/ {
+            default_type "text/html";
+            try_files $uri $uri/ $uri.html =404;
+        }
+
+        location / {
+            try_files _ /index.php$is_args$args;
+        }
+
+        location ~ index\.php$ {
+            try_files $uri =404;
+            fastcgi_split_path_info ^(index.php)(/.+)$;
+            fastcgi_pass   unix:/var/run/php-fpm.sock;
+            fastcgi_index  index.php;
+            include        fastcgi.conf;
+        }
+    }
+}
